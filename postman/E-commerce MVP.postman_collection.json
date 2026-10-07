@@ -1,0 +1,258 @@
+{
+  "info": {
+    "_postman_id": "f270b9a7-784c-4d52-b91c-38dd3de53a60",
+    "name": "E-commerce MVP - Bang cham thuc hanh 2",
+    "description": "Import collection, set baseUrl, and run the requests in order. Create X and Y first using npm run db:products (local) or docker compose exec api node scripts/create-products.js.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:13000" },
+    { "key": "username", "value": "" },
+    { "key": "password", "value": "Demo-customer-password-2026" },
+    { "key": "token", "value": "" },
+    { "key": "productXId", "value": "" },
+    { "key": "productYId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "shipmentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Health check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/healthz"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API and PostgreSQL are healthy', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().database).to.eql('connected');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Register new normal member (10 points)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('username', 'demo_' + Date.now());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registration creates normal member with score 10', function () {",
+              "  pm.response.to.have.status(201);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.user.role.rolename).to.eql('normal');",
+              "  pm.expect(body.user.membership.mname).to.eql('normal');",
+              "  pm.expect(body.user.membership.score).to.eql(10);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"fullname\": \"Demo Member\",\n  \"password\": \"{{password}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "3. Login and save JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login returns access token', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+              "  pm.collectionVariables.set('token', body.token);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "4. Find products X and Y",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Products X and Y are present', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const products = pm.response.json().products;",
+              "  const x = products.find(product => product.pname === 'X');",
+              "  const y = products.find(product => product.pname === 'Y');",
+              "  pm.expect(x, 'Create product X using the CLI first').to.exist;",
+              "  pm.expect(y, 'Create product Y using the CLI first').to.exist;",
+              "  pm.collectionVariables.set('productXId', String(x.pid));",
+              "  pm.collectionVariables.set('productYId', String(y.pid));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/products?limit=100&offset=0"
+      }
+    },
+    {
+      "name": "5. Order without token (expect 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order without JWT is rejected', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    { \"pid\": {{productXId}}, \"qty\": 2 },\n    { \"pid\": {{productYId}}, \"qty\": 5 }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/orders"
+      }
+    },
+    {
+      "name": "6. Place order: X x 2, Y x 5 (save order and shipment IDs)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order succeeds and creates order details and shipment', function () {",
+              "  pm.response.to.have.status(201);",
+              "  const order = pm.response.json().order;",
+              "  pm.expect(order.orderDetails).to.have.length(2);",
+              "  pm.expect(order.orderDetails.find(item => item.pid === Number(pm.collectionVariables.get('productXId'))).qty).to.eql(2);",
+              "  pm.expect(order.orderDetails.find(item => item.pid === Number(pm.collectionVariables.get('productYId'))).qty).to.eql(5);",
+              "  pm.expect(order.createat).to.exist;",
+              "  pm.expect(order.shipments).to.have.length(1);",
+              "  pm.expect(order.shipments[0].status).to.eql('pending');",
+              "  pm.collectionVariables.set('orderId', String(order.oid));",
+              "  pm.collectionVariables.set('shipmentId', String(order.shipments[0].shipid));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    { \"pid\": {{productXId}}, \"qty\": 2 },\n    { \"pid\": {{productYId}}, \"qty\": 5 }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/orders"
+      }
+    },
+    {
+      "name": "7. View order with details and shipment",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order details and shipment are visible', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const order = pm.response.json().order;",
+              "  pm.expect(order.orderDetails).to.have.length(2);",
+              "  pm.expect(order.shipments).to.have.length(1);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. View order shipments",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/shipments"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Shipment is visible', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const shipments = pm.response.json().shipments;",
+              "  pm.expect(shipments).to.have.length(1);",
+              "  pm.expect(shipments[0].shipid).to.eql(Number(pm.collectionVariables.get('shipmentId')));",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
