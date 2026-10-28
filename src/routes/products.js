@@ -14,7 +14,7 @@ function parseProductInput(body, partial = false) {
     data.pname = body.pname.trim();
   }
   if (!partial || Object.hasOwn(body, "price")) {
-    if (typeof body.price !== "number" || !Number.isFinite(body.price) || body.price <= 0 || Math.round(body.price * 100) !== body.price * 100) {
+    if (typeof body.price !== "number" || !Number.isFinite(body.price) || body.price <= 0 || Number(body.price.toFixed(2)) !== body.price) {
       throw httpError(400, "price must be a positive number with at most two decimal places.");
     }
     data.price = body.price;

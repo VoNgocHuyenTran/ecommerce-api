@@ -22,8 +22,12 @@ function createApp({
   app.use(express.json({ limit: "32kb" }));
 
   app.get("/healthz", asyncRoute(async (_req, res) => {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: "ok", database: "connected" });
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ status: "ok", database: "connected" });
+    } catch (error) {
+      res.status(503).json({ status: "error", database: "disconnected" });
+    }
   }));
 
   const { authenticate, requireAdmin } = createAuthMiddleware(prisma, jwtSecret);

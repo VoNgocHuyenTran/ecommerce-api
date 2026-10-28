@@ -90,7 +90,7 @@ Các model được khai báo trong `prisma/schema.prisma`:
 - `Product`: chứa giá và số lượng tồn kho.
 - `Shipment`: thuộc về đơn hàng.
 
-Migration đã chuẩn bị trong `prisma/migrations/`. `prisma.config.ts` đọc `DATABASE_URL` từ `.env`.
+Migration đã chuẩn bị trong `prisma/migrations/`. `prisma.config.ts` nạp `.env` bằng `dotenv/config` rồi đọc `DATABASE_URL`, nên các lệnh Prisma CLI chạy trực tiếp từ thư mục dự án không cần tự nạp biến môi trường.
 
 **Kiểm tra:** `prisma validate` phải báo schema hợp lệ; `prisma generate` phải sinh Prisma Client thành công. Nếu lệnh nào báo lỗi, sửa lỗi trước khi đi tiếp.
 
